@@ -10,7 +10,7 @@ import SwiftData
 
 
 struct SmallTaskCard: View {
-    private var taskData: Task?
+    private var taskData: PTask?
     @State var hline: String = ""
     @State var uline: String = ""
     @State var dzn: Date = Date()
@@ -38,7 +38,7 @@ struct SmallTaskCard: View {
         self.taskOpt = Set(opt)
     }
     
-    public init(tData: Task, col: Color = Color.blue) {
+    public init(tData: PTask, col: Color = Color.blue) {
         self.init()
         
         self.taskData = tData
@@ -100,10 +100,10 @@ struct SmallTaskCard: View {
             .padding(5)
             .border(col, width: 1)
             .cornerRadius(10)
-            .background(Color("AccColour").opacity(0.5))
+            .background(Color("LightCol").opacity(0.5))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(col, lineWidth: 2))
+                    .stroke(Color("BorderGray"), lineWidth: 2))
             
     }
     

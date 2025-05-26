@@ -8,6 +8,8 @@
 import SwiftUI
 import Foundation
 import SwiftData
+import FirebaseAuth
+import FirebaseFirestore
 
 
 
@@ -29,47 +31,84 @@ struct MainPlanView: View {
     
     @Environment(\.modelContext) var context
     
-    @State var IsNewTaskWindowVisible: Bool
-    @State var IsTaskListVisible: Bool
-    @State var IsAddingNewTag: Bool
+    @State var IsNewTaskWindowVisible: Bool = false
+    @State var IsTaskListVisible: Bool = false
+    @State var IsAddingNewTag: Bool = false
+    @State private var showingSignOutAlert = false
     
     
-    @State private var dzien: Date
-    @Query var tasks: [Task]
-    @Query var errtasks: [Task]
+    @State private var dzien: Date = Date.now
+    @Query(sort: \PTask.date) var allTasks: [PTask]
+//    @Query var tasks: [Task]
+//    @Query var errtasks: [Task]
     
     @Query(sort: \TaskTag.name) var taskTagList: [TaskTag]
-    @State private var selectedTask: Task?
+    @State private var selectedTask: PTask?
     @State private var selectedTag: TaskTag?
-    @State private var selectedPredicate: Predicate<Task>? = nil
+    @State private var selectedPredicate: Predicate<PTask>? = nil
     
-    init() {
-        IsNewTaskWindowVisible = false
-        IsTaskListVisible = false
-        IsAddingNewTag = false
-        dzien = Date.now
+    
+    @State private var taskManager: PrivateTaskManager?
+    
+    var tasks: [PTask] {
+            guard let currentUser = Auth.auth().currentUser else { return [] }
         
-        let startDate = Date.now
-        let endDate = Date.now.addingTimeInterval(2.99 * 86400)
-        
-        let pred = #Predicate<Task>{
-                $0.date >= startDate && $0.date <= endDate && !$0.IsDone
+            let startDate = Date.now
+            let endDate = Date.now.addingTimeInterval(2.99 * 86400)
+            
+            return allTasks.filter { task in
+                task.owner_fID == currentUser.uid &&
+                task.date >= startDate &&
+                task.date <= endDate &&
+                !task.IsDone
             }
-        let err_pred = #Predicate<Task>{
-            $0.date < startDate && $0.IsAutoFail == true && $0.IsDone == false
         }
         
-        _tasks = Query(filter: pred, sort: \Task.date)
-        _errtasks = Query(filter:err_pred, sort: \Task.date)
+    var errtasks: [PTask] {
         
+            guard let currentUser = Auth.auth().currentUser else { return [] }
+        
+            let startDate = Date.now
+            return allTasks.filter { task in
+                task.owner_fID == currentUser.uid &&
+                task.date < startDate &&
+                task.IsAutoFail == true &&
+                task.IsDone == false
+            }
         }
+//    init() {
+//        print("MainPlanView initialized - this should happen less frequently now")
+//    }
+    
+//    func asinit() {
+//        IsNewTaskWindowVisible = false
+//        IsTaskListVisible = false
+//        IsAddingNewTag = false
+//        dzien = Date.now
+//        
+//        let startDate = Date.now
+//        let endDate = Date.now.addingTimeInterval(2.99 * 86400)
+//        
+//        let pred = #Predicate<Task>{
+//                $0.date >= startDate && $0.date <= endDate && !$0.IsDone
+//            }
+//        let err_pred = #Predicate<Task>{
+//            $0.date < startDate && $0.IsAutoFail == true && $0.IsDone == false
+//        }
+//        
+//        _tasks = Query(filter: pred, sort: \Task.date)
+//        _errtasks = Query(filter:err_pred, sort: \Task.date)
+//        
+//        print("Current user: ", Auth.auth().currentUser?.uid ?? "brak uzytkownika", "Username: ", Auth.auth().currentUser?.displayName ?? "User")
+//        
+//        }
 
     
     private func updateTasks() {
-        let isnotDone = #Predicate<Task>{!$0.IsDone && $0.IsAutoComplete}
+        let isnotDone = #Predicate<PTask>{!$0.IsDone && $0.IsAutoComplete}
         let startDate = Date.now
         
-        let fetchDesc = FetchDescriptor<Task>(
+        let fetchDesc = FetchDescriptor<PTask>(
             predicate: isnotDone
         )
         let isnotDoneTasks = try! context.fetch(fetchDesc)
@@ -81,6 +120,17 @@ struct MainPlanView: View {
             }
         }
     }
+    
+    private func signOut() {
+        do {
+            try Auth.auth().signOut()
+            // State listener will automatically navigate to LoginView
+        } catch let signOutError as NSError {
+            print("Error signing out: \(signOutError.localizedDescription)")
+        }
+    }
+    
+    
 
     
     var body: some View {
@@ -89,36 +139,33 @@ struct MainPlanView: View {
                     .frame(width: UIScreen.main.bounds.width,
                            height: UIScreen.main.bounds.height)
                     .background(
-                        Color("ApplColor")
+                        Color("LightCol")
                     )
+                // MARK: - MAIN SCROLL VIEW
                 
                 ScrollView(.vertical) {
                         VStack(spacing: 15) {
                             
                             Spacer().frame(height:20)
-                            //Date Headline
+                            ///Date Headline
                             HStack {
                                 Text(dzien, format: .dateTime.day().month(.wide))
                                     .font(.title)
                                     .bold()
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.black)
                                     .shadow(radius: 30)
-                                //                        .frame(
-                                //                            width: UIScreen.main.bounds.width - 20,
-                                //                            alignment: .leading
-                                //                        )
                                 Spacer()
                                 Text(dzien, format: .dateTime.year())
                                     .font(.title)
                                     .bold()
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.black)
                                     .opacity(0.4)
                                     .shadow(radius: 30)
                             }
                             .padding()
                         
-                            if !self.IsNewTaskWindowVisible && !IsTaskListVisible {
-                                //Most important Tasks
+                            if !IsTaskListVisible {
+                                //MARK: - Most important Tasks — SCROLL VIEW
                                 ScrollView (.vertical) {
                                     VStack(spacing: 5) {
                                         
@@ -127,6 +174,7 @@ struct MainPlanView: View {
                                             .onTapGesture {
                                                     self.selectedTask = errtsk
                                                     self.IsNewTaskWindowVisible = true
+                                                print("Tapped on task...")
                                             }
                                             
                                         }
@@ -137,7 +185,6 @@ struct MainPlanView: View {
                                             )
                                             .onTapGesture {
                                                 self.selectedTask = task
-                                                //                                            print(task.title)
                                                 self.IsNewTaskWindowVisible = true
                                             }
                                         }
@@ -156,6 +203,10 @@ struct MainPlanView: View {
                                     IsNewTaskWindowVisible.toggle()
                                     self.selectedTask = nil
                                 }, text: "Add new task")
+                                .sheet(isPresented: $IsNewTaskWindowVisible) {
+                                    CreateTaskView(shouldClose: $IsNewTaskWindowVisible, taskData: selectedTask)
+                                }
+                                
                                 
                                 
                                 Spacer().frame(height: 20)
@@ -189,7 +240,7 @@ struct MainPlanView: View {
                                     Button(action: {
                                         IsTaskListVisible.toggle()
                                         selectedTag = nil
-                                        selectedPredicate = #Predicate<Task> {
+                                        selectedPredicate = #Predicate<PTask> {
                                             $0.IsImportant == true
                                         }
                                         
@@ -247,6 +298,19 @@ struct MainPlanView: View {
                                         .padding(.bottom)
                                 }
                                 
+                                Button("Sign Out") {
+                                    showingSignOutAlert = true
+                                }
+                                .alert("Sign Out", isPresented: $showingSignOutAlert) {
+                                    Button("Cancel", role: .cancel) { }
+                                    Button("Sign Out", role: .destructive) {
+                                        signOut()
+                                    }
+                                } message: {
+                                    Text("Are you sure you want to sign out?")
+                                }
+
+                                
                             }
                             
                             
@@ -256,12 +320,6 @@ struct MainPlanView: View {
                     }
                 }
                 
-                if IsNewTaskWindowVisible
-                {
-                    CreateTaskView(shouldClose: $IsNewTaskWindowVisible, taskData: selectedTask)
-                    
-
-                }
                 if IsTaskListVisible {
                     ShowTaskList(tagInfo: selectedTag, predicate: selectedPredicate, isVisible: $IsTaskListVisible)
                     
@@ -275,7 +333,18 @@ struct MainPlanView: View {
         .onReceive(SyncTimer) { tm in
                 updateTasks()
                 updatedAt = Date()
+        }
+        .onAppear {
+            if taskManager == nil {
+                taskManager = PrivateTaskManager(modelContext: context)
             }
+            
+            Task {
+                                await taskManager?.syncAllPrivateData()
+            }
+        
+        
+        }
     }
         
 }

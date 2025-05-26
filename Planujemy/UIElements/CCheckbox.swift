@@ -7,24 +7,61 @@
 
 import SwiftUI
 
+
+struct CustomCheckboxBorderless: View {
+    @Binding var isChecked: Bool
+    var label: String?
+    var color: Color = .primary
+    var bckColor: Color? = nil
+    var size: CGFloat = 14
+    var imgName: String = "star"
+    var imgPressed: String? = nil
+    
+    
+    var body: some View {
+    
+        
+        
+        ZStack {
+            if isChecked {
+                Image(systemName: imgPressed != nil ? imgPressed! : imgName + ".fill")
+                    .foregroundColor(color)
+                    .font(.system(size: size))
+            } else {
+                Image(systemName: imgName)
+                    .foregroundColor(bckColor ?? color)
+                    .font(.system(size: size))
+            }
+            
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isChecked.toggle()
+        }
+    }
+}
+
+
 struct CustomCheckbox: View {
     @Binding var isChecked: Bool
     var label: String?
     var color: Color = .primary
     var bckColor: Color? = nil
     var size: CGFloat = 14
-    var imgName: String = "star.fill"
+    var imgName: String = "star"
+    
+    var isStroke: Bool = true
     
     var body: some View {
     
         
         
-        
-        
         ZStack {
             RoundedRectangle(cornerRadius: 4)
-                .stroke(bckColor != nil && !isChecked ? bckColor ?? color : color, lineWidth: 1)
+                .stroke(bckColor != nil && !isChecked ? bckColor ?? color : color,
+                        lineWidth: isStroke ? 1 : 0 )
                 .frame(width: size, height: size)
+            
             
             if isChecked {
                 Image(systemName: imgName)
@@ -68,5 +105,5 @@ struct DullCustomCheckbox: View {
 
 #Preview {
     @Previewable @State var isChecked = false
-    CustomCheckbox(isChecked: $isChecked)
+    CustomCheckboxBorderless(isChecked: $isChecked)
 }

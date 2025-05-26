@@ -11,11 +11,14 @@ import SwiftUI
 struct DropTasksButton: View {
     
     @Environment(\.modelContext) private var context
-    @Query(sort:\Task.date) private var all_tasks: [Task]
+    @Query(sort:\PTask.date) private var all_tasks: [PTask]
+    @Query(sort:\Users.Name) private var all_users: [Users]
     
     var body: some View {
         Button(action: {
-            try! context.delete(model: Task.self)
+            try! context.delete(model: PTask.self)
+            try! context.delete(model: Users.self)
+            try! context.delete(model: TaskTag.self)
             try! context.save()
             
         }) {

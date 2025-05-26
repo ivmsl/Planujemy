@@ -22,17 +22,17 @@ struct CreateTaskView: View {
     @State var c_isAutoFail: Bool
     private var c_isCompleted: Bool = false
     
-    @State var taskData: Task?
+    @State var taskData: PTask?
     @State var taskTags: TaskTag?
 //    @State var taskOptions: [TaskOptions]
     
     @Binding var shouldClose: Bool
+    @State private var taskManager: PrivateTaskManager?
      
     
-    init(shouldClose: Binding<Bool>, taskData: Task? = nil) {
+    init(shouldClose: Binding<Bool>, taskData: PTask? = nil) {
         self._shouldClose = shouldClose
         
-//        print(taskData!, taskData!.title)
         
         if let task = taskData {
             self._title = State(initialValue: task.title)
@@ -45,7 +45,7 @@ struct CreateTaskView: View {
             self._c_isAutoComplete = State(initialValue: task.IsAutoComplete)
             self.c_isCompleted = task.IsDone
             
-            print(c_isImportant, c_isAutoFail, c_isAutoComplete)
+//            print(c_isImportant, c_isAutoFail, c_isAutoComplete)
             
         } else {
             self.title = ""
@@ -56,10 +56,11 @@ struct CreateTaskView: View {
             self.c_isAutoComplete = true
             self.c_isAutoFail = false
 //            self.taskOptions = []
-        }
+}
         
         
     }
+    
     
     
     private func SaveTask() -> Void {
@@ -74,46 +75,76 @@ struct CreateTaskView: View {
             if let ttgs = taskTags {
                 task.tag = ttgs
             }
+            task.tagID = taskTags?.fID
+            taskManager?.markTaskForSync(task)
+            
+            Task {
+                        await taskManager?.quickSync()
+            }
 
         } else {
-            let task = Task(title: title,
-                            date: date,
-                            desc: desc)
-            task.IsAutoComplete = self.c_isAutoComplete
-            task.IsAutoFail = self.c_isAutoFail
-            task.IsImportant = self.c_isImportant
-            if let ttgs = taskTags {
-                task.tag = ttgs
+            
+            
+            let taskOptions = buildTaskOptions()
+
+            Task {
+                await taskManager?.createPrivateTask(
+                    title: title,
+                    date: date,
+                    desc: desc.isEmpty ? nil : desc,
+                    tag: taskTags,
+                    opt: taskOptions
+                )
             }
             
-            context.insert(task)
+            //            let task = PTask(title: title,
+            //                            date: date,
+            //                            desc: desc)
+            //            task.IsAutoComplete = self.c_isAutoComplete
+            //            task.IsAutoFail = self.c_isAutoFail
+            //            task.IsImportant = self.c_isImportant
+            //            if let ttgs = taskTags {
+            //                task.tag = ttgs
+            //            }
+            //
+            //            context.insert(task)
+            //        }
+            //        try! context.save()
         }
-        try! context.save()
         shouldClose = !true
     }
     
+    private func buildTaskOptions() -> [TaskOptions] {
+        var options: [TaskOptions] = [.Usual]
+        
+        if c_isImportant {
+            options.append(.IsImportant)
+        }
+        
+        if c_isAutoFail {
+            options.append(.IsAutoFail)
+        }
+        
+        
+        return options
+    }
 
     var body: some View {
-        ZStack {
-//            VStack {}
-//                .frame(width: UIScreen.main.bounds.width,
-//                       height: UIScreen.main.bounds.height)
-//                .background(
-//                    Color(.blue)
-//                )
-//            
+
             VStack(spacing: 10) {
                 
                 HStack {
                     Text(taskData != nil ? "Edit task" : "Create new task")
                         .font(.largeTitle)
                         .fontWeight(.heavy)
-                        .padding(10)
+                        .padding(.horizontal, 10)
                     Spacer()
-//                    Divider()
                 }
-                    .background(Color("AccColour"))
-                    
+                    .background(Color("LightCol"))
+                
+                Divider()
+                    .foregroundStyle(Color("BorderGray"))
+                
                 HStack {
                     VStack {
                         TextField(
@@ -121,16 +152,16 @@ struct CreateTaskView: View {
                             text: $title
                         )
                         .font(.title)
-                        .padding(10)
+                        .padding(.horizontal, 10)
                         
                         
                     }
                     .padding(.leading,2)
                     Spacer()
                     VStack {
-                        CustomCheckbox(
+                        CustomCheckboxBorderless(
                             isChecked: $c_isImportant,
-                            color: Color("AccColour"),
+                            color: Color(.yellow),
                             size: 30
                         )
                         
@@ -138,26 +169,6 @@ struct CreateTaskView: View {
                     .padding(.trailing, 10)
                 }
                 
-                
-                
-                
-//                HStack {
-//                    Text("Title")
-//                        .font(.headline)
-////                        .padding(.horizontal, 10)
-//                        
-////                    Spacer()
-//                    Text("Day and Hour")
-//                        .font(.headline)
-//                }
-//                .alignmentGuide(HorizontalAlignment.center) {d in
-//                    d[HorizontalAlignment.center]
-//                }
-//                
-//                .background(.blue)
-                
-//                .frame(alignment: .leading)
-//                .padding(.horizontal)
                 
                 HStack {
                     
@@ -176,27 +187,34 @@ struct CreateTaskView: View {
                     Spacer()
                     
                     if (!c_isAutoComplete) {
-                        CustomCheckbox(
+                        CustomCheckboxBorderless(
                             isChecked: $c_isAutoFail,
                             color: .red,
                             bckColor: Color(hue: 1.0, saturation: 0.658, brightness: 0.47),
                             size: 30,
-                            imgName: "calendar.badge.exclamationmark"
+                            imgName: "calendar.badge.exclamationmark",
+                            imgPressed: "calendar.badge.exclamationmark"
                         )
                     }
                     else {
-                        DullCustomCheckbox(size: 30)
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.system(size: 30))
+                            .foregroundStyle(Color(.systemGray))
                     }
                     
                     if (!c_isAutoFail) {
-                        CustomCheckbox(
+                        CustomCheckboxBorderless(
                             isChecked: $c_isAutoComplete,
                             color: Color(.green),
+                            bckColor: Color(#colorLiteral(red: 0.360394299, green: 0.5548041463, blue: 0.2798731923, alpha: 1)),
                             size: 30,
-                            imgName: "calendar.badge.checkmark.rtl"
+                            imgName: "calendar.badge.checkmark.rtl",
+                            imgPressed: "calendar.badge.checkmark.rtl"
                         )
                     } else {
-                        DullCustomCheckbox(size: 30)
+                        Image(systemName: "calendar.badge.checkmark.rtl")
+                            .font(.system(size: 30))
+                            .foregroundStyle(Color(.systemGray))
                     }
                     
                 }
@@ -220,23 +238,29 @@ struct CreateTaskView: View {
                 .padding(.top, 10)
                 .background(Color.gray.opacity(0.2))
                 
-                Spacer()
+                Divider()
                 
-                Menu {
-                    ForEach(tagList) {taskEl in
-                        Button(action: {
-                            taskTags = taskEl
-                        })
-                        {
-                            Text(taskEl.name)
+                HStack {
+                    Menu {
+                        ForEach(tagList) {taskEl in
+                            Button(action: {
+                                taskTags = taskEl
+                            })
+                            {
+                                Text(taskEl.name)
+                            }
+                            
                         }
-                        
+                    } label: {
+                        Label(taskTags?.name ?? "Select tag", systemImage: "tag")
+                            .font(.title3)
+                            .foregroundStyle(.black)
                     }
-                } label: {
-                    Label(taskTags?.name ?? "Select tag", systemImage: "tag")
-                        .font(.caption)
-                        .foregroundStyle(.black)
+                    Spacer()
                 }
+                
+                
+                
                 
                 Spacer()
                 
@@ -298,11 +322,15 @@ struct CreateTaskView: View {
             }
             .frame(width: UIScreen.main.bounds.width - 20, height: 600)
             .background(.white)
-            .padding()
+            .padding(.horizontal, 10)
+            .onAppear {
+                if taskManager == nil {
+                    taskManager = PrivateTaskManager(modelContext: context)
+                }
             
             
             
-        }
+            }
     }
 }
 

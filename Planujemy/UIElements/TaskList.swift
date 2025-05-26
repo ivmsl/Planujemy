@@ -8,35 +8,44 @@
 import SwiftUI
 import Foundation
 import SwiftData
+import FirebaseAuth
 
 
 struct ShowTaskList: View {
     @Environment(\.modelContext) var context
-    @Query var taskList: [Task]
+    @Query var allTaskList: [PTask]
     @Binding var isVisible: Bool
     
     @State private var taskTagName: String = ""
-    @State private var selectedTaskFromList: Task?
+    @State private var selectedTaskFromList: PTask?
     @State private var editTaskListFromScreen: Bool = false
     
-    init(tagInfo: TaskTag?, predicate: Predicate<Task>?, isVisible: Binding<Bool>, listName: String = "") {
+    private var taskList: [PTask] {
+            guard let currentUserID = Auth.auth().currentUser?.uid else { return [] }
+            
+            return allTaskList.filter { task in
+                task.owner_fID == currentUserID && !task.IsShared
+            }
+        }
+    
+    init(tagInfo: TaskTag?, predicate: Predicate<PTask>?, isVisible: Binding<Bool>, listName: String = "") {
         _isVisible = isVisible
         
         if let tmpTagInfo = tagInfo {
             self._taskTagName = State(initialValue: tmpTagInfo.name)
             let tagID = tmpTagInfo.id
-            let predicate = #Predicate<Task> {
+            let predicate = #Predicate<PTask> {
                 $0.tag?.id == tagID
                     
             }
-            _taskList = Query(filter: predicate, sort: \.date)
+            _allTaskList = Query(filter: predicate, sort: \.date)
         }
         else if let pred = predicate {
             if listName != "" {self._taskTagName = State(initialValue: listName)}
-            _taskList = Query(filter: pred, sort: \.date)
+            _allTaskList = Query(filter: pred, sort: \.date)
         }
         else {
-            _taskList = Query(sort: \.date)
+            _allTaskList = Query(sort: \.date)
         }
         
     }
@@ -62,6 +71,7 @@ struct ShowTaskList: View {
             //                                            print(task.title)
                                 self.editTaskListFromScreen = true
                             }
+                            
                         }
                         
                     }
@@ -79,7 +89,7 @@ struct ShowTaskList: View {
         .frame(width: UIScreen.main.bounds.width - 20, height: 600)
 //        .background(.white)
         .padding()
-        .background(Color("ApplColor"))
+        .background(Color("LightCol"))
         
         
     }

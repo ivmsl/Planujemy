@@ -11,6 +11,9 @@ import SwiftUI
 struct BigButton: View {
     var closure: () -> Void
     var text: String
+    var fg: Color = Color("LightCol")
+    var bg: Color = .black
+    var bordc: Color = .black
     
     
     
@@ -20,16 +23,15 @@ struct BigButton: View {
             closure()
         }) {
             Text(text)
-            //                        .bold()
-                .foregroundColor(.black)
+                .foregroundColor(fg)
                 .font(.title2)
                 .padding()
                 .frame(width: UIScreen.main.bounds.width - 50, height: 50)
-                .background(.white.opacity(1))
+                .background(bg.opacity(0.8))
                 .cornerRadius(15)
                 .overlay(
                     RoundedRectangle(cornerRadius: 15)
-                        .stroke(Color.black, lineWidth: 2))
+                        .stroke(bordc, lineWidth: 2))
         }
         
     }
