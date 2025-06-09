@@ -26,7 +26,7 @@ struct PlanujemyApp: App {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [PTask.self, TaskTag.self, Users.self])
+        .modelContainer(for: [PTask.self, TaskTag.self, Users.self, Friends.self])
     }
 }
 

@@ -315,17 +315,24 @@ class TaskTag: Identifiable {
 
 @Model
 class Friends: Identifiable {
-    
     var id: UUID
     var UserID: UUID
     var FriendID: UUID
-    
     var FriendName: String
     
-    init(userID: UUID, friendID: UUID, friendName: String) {
+    // Add these for better Firebase integration
+    var friendFirebaseUID: String?
+    var friendEmail: String?
+    var addedDate: Date?
+    var status: String = "active"
+    
+    init(userID: UUID, friendID: UUID, friendName: String, friendFirebaseUID: String? = nil, friendEmail: String? = nil) {
         self.id = UUID()
         self.UserID = userID
         self.FriendID = friendID
         self.FriendName = friendName
+        self.friendFirebaseUID = friendFirebaseUID
+        self.friendEmail = friendEmail
+        self.addedDate = Date()
     }
 }

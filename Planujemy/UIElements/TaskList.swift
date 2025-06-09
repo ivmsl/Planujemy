@@ -24,7 +24,7 @@ struct ShowTaskList: View {
             guard let currentUserID = Auth.auth().currentUser?.uid else { return [] }
             
             return allTaskList.filter { task in
-                task.owner_fID == currentUserID && !task.IsShared
+                task.owner_fID == currentUserID || task.to_user_fID == currentUserID
             }
         }
     
@@ -82,7 +82,7 @@ struct ShowTaskList: View {
                 
             }
             else {
-                CreateTaskView(shouldClose: $editTaskListFromScreen, taskData: selectedTaskFromList)
+                NewCreateTaskView(shouldClose: $editTaskListFromScreen, taskData: selectedTaskFromList)
             }
             
         }

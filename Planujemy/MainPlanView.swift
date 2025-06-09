@@ -36,6 +36,8 @@ struct MainPlanView: View {
     @State var IsAddingNewTag: Bool = false
     @State private var showingSignOutAlert = false
     
+    @State private var showingFriendsList = false
+    
     
     @State private var dzien: Date = Date.now
     @Query(sort: \PTask.date) var allTasks: [PTask]
@@ -49,6 +51,8 @@ struct MainPlanView: View {
     
     
     @State private var taskManager: PrivateTaskManager?
+    @State private var friendManager: FriendManager?
+    @State private var sharedTaskManager: SharedTaskManager?
     
     var tasks: [PTask] {
             guard let currentUser = Auth.auth().currentUser else { return [] }
@@ -57,10 +61,22 @@ struct MainPlanView: View {
             let endDate = Date.now.addingTimeInterval(2.99 * 86400)
             
             return allTasks.filter { task in
-                task.owner_fID == currentUser.uid &&
+                (task.owner_fID == currentUser.uid || task.to_user_fID == currentUser.uid) &&
                 task.date >= startDate &&
                 task.date <= endDate &&
                 !task.IsDone
+            }
+        }
+    
+    private func performBackgroundSync() async {
+            do {
+                // Quick sync - only uploads changes, doesn't show loading
+                await taskManager?.quickSync()
+                try await sharedTaskManager?.syncSharedTasks()
+                print("🔄 Background sync completed")
+            } catch {
+                print("❌ Background sync failed: \(error)")
+                // Silent failure - don't show errors to user for background sync
             }
         }
         
@@ -117,6 +133,14 @@ struct MainPlanView: View {
             if tsk.date < startDate {
                 tsk.IsDone = true
                 tsk.DateOfCompletion = startDate
+                
+                if tsk.IsShared {
+                    Task {
+                        try? await sharedTaskManager?.updateSharedTask(tsk, newStatus: .completed)
+                        }
+                } else {
+                        taskManager?.markTaskForSync(tsk)
+                }
             }
         }
     }
@@ -188,8 +212,7 @@ struct MainPlanView: View {
                                                 self.IsNewTaskWindowVisible = true
                                             }
                                         }
-                                        
-                                        
+
                                     }
                                     .padding()
                                     
@@ -204,7 +227,7 @@ struct MainPlanView: View {
                                     self.selectedTask = nil
                                 }, text: "Add new task")
                                 .sheet(isPresented: $IsNewTaskWindowVisible) {
-                                    CreateTaskView(shouldClose: $IsNewTaskWindowVisible, taskData: selectedTask)
+                                    NewCreateTaskView(shouldClose: $IsNewTaskWindowVisible, taskData: selectedTask)
                                 }
                                 
                                 
@@ -215,6 +238,7 @@ struct MainPlanView: View {
                                 
                                 
                                 ForEach(taskTagList) { tTag in
+//                                    Print(tTag.name)
                                     HStack {
                                         Circle()
                                             .fill(tTag.col.color)
@@ -279,7 +303,7 @@ struct MainPlanView: View {
                                 .font(.title2)
                                 
                                 if IsAddingNewTag {
-                                    NewTagInput(isPresented: $IsAddingNewTag)
+                                    NewTagInput(isPresented: $IsAddingNewTag, taskManager: taskManager)
                                 }
                                 
                                 
@@ -289,6 +313,26 @@ struct MainPlanView: View {
                                     Text("Add new tag")
                                         .font(.subheadline)
                                 }
+                                
+                                Divider()
+                                VStack(spacing:20){
+//                                    HStack{
+//                                        Text("Friends")
+//                                            .font(.title)
+//                                            .bold()
+//                                        Spacer()
+//                                    }
+//                                    .padding(.leading, 20)
+                                    
+                                    Button("Friends") {
+                                                showingFriendsList = true
+                                            }
+                                            .sheet(isPresented: $showingFriendsList) {
+                                                FriendListView(modelContext: context)
+                                            }
+                                }
+                                
+                                
                                 
                                 Divider()
                                 DropTasksButton()
@@ -333,14 +377,29 @@ struct MainPlanView: View {
         .onReceive(SyncTimer) { tm in
                 updateTasks()
                 updatedAt = Date()
+            Task {
+                await performBackgroundSync()
+            }
         }
         .onAppear {
+            Print(taskTagList)
             if taskManager == nil {
                 taskManager = PrivateTaskManager(modelContext: context)
             }
             
+            if friendManager == nil {
+                        friendManager = FriendManager(modelContext: context)
+                    }
+                    
+                    
+            if sharedTaskManager == nil {
+                        sharedTaskManager = SharedTaskManager(modelContext: context)
+                    }
+            
             Task {
                                 await taskManager?.syncAllPrivateData()
+                    try await friendManager?.fetchPendingFriendRequests()
+                    try await sharedTaskManager?.syncSharedTasks()
             }
         
         

@@ -16,8 +16,40 @@ struct NewTagInput: View {
     @FocusState private var isFocused: Bool
     @Environment(\.modelContext) private var context
     
-    init(isPresented: Binding<Bool>) {
+    @State private var selectedSymImage: String?
+    @State private var taskManager: PrivateTaskManager?
+    
+    init(isPresented: Binding<Bool>, taskManager: PrivateTaskManager?) {
         _isPresented = isPresented
+        _taskManager = State(initialValue: taskManager)
+    }
+    
+    private func SaveTag() -> Void {
+//        if let tag = self.tagData {
+//            // EDITING existing tag
+//            tag.name = self.tagName
+////            tag.symImage = self.selectedSymImage
+////            tag.col = self.selectedColor // Assuming you have color picker
+//            
+//            // Mark for sync and save locally
+//            taskManager?.markTagForSync(tag)
+//            
+//            Task {
+//                await taskManager?.quickSync()
+//            }
+//            
+//        } else {
+            // CREATING new tag
+            Task {
+                await taskManager?.createTag(
+                    name: TagName,
+                    symImage: selectedSymImage?.isEmpty == true ? nil : selectedSymImage
+                )
+            }
+//        }
+        
+//        shouldClose = true
+        isPresented = false
     }
     
     func addNewTag() -> Void {
@@ -34,17 +66,17 @@ struct NewTagInput: View {
     var body: some View {
         TextField("New category", text: $TagName)
             .padding()
-            .background(Color("AccColour").opacity(0.5))
+            .background(Color("LightCol"))
             .cornerRadius(8)
             .focused($isFocused)
-            .onSubmit {addNewTag()}
+            .onSubmit {SaveTag()}
             .onAppear {
                 isFocused = true
             }
             .onChange(of: isFocused)
             {
                 if !isFocused && isPresented {
-                    addNewTag()
+                    SaveTag()
                 }
             }
                       
@@ -56,5 +88,5 @@ struct NewTagInput: View {
 
 #Preview {
     @Previewable @State var isPresented: Bool = true
-    NewTagInput(isPresented: $isPresented)
+//    NewTagInput(isPresented: $isPresented, taskManager: )
 }

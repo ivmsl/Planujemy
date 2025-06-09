@@ -16,9 +16,9 @@ struct DropTasksButton: View {
     
     var body: some View {
         Button(action: {
-            try! context.delete(model: PTask.self)
-            try! context.delete(model: Users.self)
-            try! context.delete(model: TaskTag.self)
+            try! context.delete(model: Friends.self)
+//            try! context.delete(model: Users.self)
+//            try! context.delete(model: TaskTag.self)
             try! context.save()
             
         }) {
